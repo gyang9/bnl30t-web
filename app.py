@@ -50,16 +50,27 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files:
-        return jsonify({'success': False, 'error': 'No file part'})
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'success': False, 'error': 'No selected file'})
-    if file:
-        filename = file.filename
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        return jsonify({'success': True, 'filepath': filepath})
+    try:
+        print("Upload request received")
+        if 'file' not in request.files:
+            print("No file part in request")
+            return jsonify({'success': False, 'error': 'No file part'})
+        file = request.files['file']
+        if file.filename == '':
+            print("No file selected")
+            return jsonify({'success': False, 'error': 'No selected file'})
+        if file:
+            filename = file.filename
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            print(f"Saving file to: {filepath}")
+            file.save(filepath)
+            print(f"File saved successfully: {filepath}")
+            return jsonify({'success': True, 'filepath': filepath})
+    except Exception as e:
+        print(f"Upload error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/load_file', methods=['POST'])
 def load_file():
