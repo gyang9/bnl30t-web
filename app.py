@@ -66,6 +66,10 @@ def load_file():
     data = request.json
     file_path = data.get('file_path')
     
+    # Check if backend modules are available
+    if not EventDisplay:
+        return jsonify({'success': False, 'error': 'Backend analysis modules not available. The drop folder may be missing.'})
+    
     if not file_path or not os.path.exists(file_path):
         return jsonify({'success': False, 'error': 'File not found'})
 
@@ -74,19 +78,16 @@ def load_file():
         config_path = os.path.join(os.environ['YAML_DIR'], 'config_30t.yaml')
         
         # Initialize EventDisplay
-        if EventDisplay:
-            current_state['event_display'] = EventDisplay(file_path, config_path)
-            min_id, max_id = current_state['event_display'].get_bound_id()
-            current_state['min_id'] = int(min_id)
-            current_state['max_id'] = int(max_id)
-            return jsonify({
-                'success': True, 
-                'filename': os.path.basename(file_path),
-                'min_id': int(min_id),
-                'max_id': int(max_id)
-            })
-        else:
-             return jsonify({'success': False, 'error': 'Backend modules not loaded'})
+        current_state['event_display'] = EventDisplay(file_path, config_path)
+        min_id, max_id = current_state['event_display'].get_bound_id()
+        current_state['min_id'] = int(min_id)
+        current_state['max_id'] = int(max_id)
+        return jsonify({
+            'success': True, 
+            'filename': os.path.basename(file_path),
+            'min_id': int(min_id),
+            'max_id': int(max_id)
+        })
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
