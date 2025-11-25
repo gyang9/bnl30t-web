@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BNL1T Event Display Web</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>BNL1T Analysis Web App</h1>
+        </header>
+
+        <section id="file-loader">
+            <input type="text" id="file-path" placeholder="/path/to/file.root"
+                value="/home/guang/work/bnl1t/drop/drop_jan26_24_pull/data_30ton/majority_test_251031T0706_0.root">
+            <button onclick="loadFile()">Load File</button>
+            <span style="margin: 0 10px;">OR</span>
+            <input type="file" id="upload-file">
+            <button onclick="uploadFile()">Upload & Load</button>
+            <span id="file-status">No file loaded</span>
+            <span id="event-range"></span>
+        </section>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="openTab('histogram')">Histogram</button>
+            <button class="tab-btn" onclick="openTab('event-display')">Event Display</button>
+            <button class="tab-btn" onclick="openTab('waveform')">Waveform</button>
+        </div>
+
+        <div id="histogram" class="tab-content active">
+            <div class="controls">
+                <label>Channels:</label>
+                <input type="text" id="hist-channels" value="b1ch0,b1ch2-b1ch8,b1ch10-b1ch11">
+                <label>Trigger:</label>
+                <input type="text" id="hist-trigger" value="b4ch9-b4ch12,b4ch18-b4ch21">
+                <button onclick="generateHistogram('Histogram 1')">Generate Histogram</button>
+            </div>
+            <div id="hist-plot" class="plot-container"></div>
+        </div>
+
+        <div id="event-display" class="tab-content">
+            <div class="controls">
+                <label>Event ID:</label>
+                <input type="number" id="ed-event-id" value="0">
+                <button onclick="generateEventDisplay()">Show Event</button>
+            </div>
+            <div id="ed-plot" class="plot-container"></div>
+        </div>
+
+        <div id="waveform" class="tab-content">
+            <div class="controls">
+                <label>Event ID:</label>
+                <input type="number" id="wf-event-id" value="0">
+                <button onclick="generateWaveform()">Show Waveforms</button>
+            </div>
+            <div id="wf-plot" class="plot-container"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>
