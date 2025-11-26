@@ -14,7 +14,7 @@ from matplotlib import cm
 import os
 import sys
 sys.path.append(os.environ['LIB_DIR'])
-import utilities_numba as util_nb
+# import utilities_numba as util_nb
 from yaml_reader import YamlReader, SAMPLE_TO_NS, MY_QUANTILES
 from utilities import generate_colormap, digitial_butter_highpass_filter
 
@@ -131,9 +131,9 @@ class Waveform():
             print('get_flat_baseline')
         # qx = np.quantile(val, MY_QUANTILES)
         if summed_channel:
-            qx = util_nb.quantile_f8(val, MY_QUANTILES)
+            qx = np.quantile(val, MY_QUANTILES)
         else:
-            qx = util_nb.quantile_u2(val, MY_QUANTILES)
+            qx = np.quantile(val, MY_QUANTILES)
         return qx[1], abs(qx[2]-qx[0])/2
 
     def subtract_flat_baseline(self):
@@ -676,16 +676,16 @@ class Waveform():
                     continue
                 #print ("roi ch. ", ch)
                 if 'b4' in ch:
-                    height_pe[ch] = util_nb.max(a[start2:end2])
-                    low_pe[ch] = util_nb.min(a[start2:end2])
-                    std_pe[ch] = util_nb.std(a[start2:end2])
+                    height_pe[ch] = np.max(a[start2:end2])
+                    low_pe[ch] = np.min(a[start2:end2])
+                    std_pe[ch] = np.std(a[start2:end2])
                     std_mV[ch] = std_pe[ch]*50*self.spe_mean[ch]
                     a_int =  self.amp_pe_int[ch]
                     area_pe[ch] = a_int[end2]-a_int[start2]
                 else:
-                    height_pe[ch] = util_nb.max(a[start:end])
-                    low_pe[ch] = util_nb.min(a[start:end])
-                    std_pe[ch] = util_nb.std(a[start:end])
+                    height_pe[ch] = np.max(a[start:end])
+                    low_pe[ch] = np.min(a[start:end])
+                    std_pe[ch] = np.std(a[start:end])
                     std_mV[ch] = std_pe[ch]*50*self.spe_mean[ch]
                     a_int =  self.amp_pe_int[ch]
                     area_pe[ch] = a_int[end]-a_int[start]

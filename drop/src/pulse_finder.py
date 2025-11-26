@@ -8,7 +8,72 @@ from waveform import Waveform
 from yaml_reader import YamlReader, SAMPLE_TO_NS, MY_QUANTILES
 sys.path.append(os.environ['LIB_DIR'])
 from utilities import generate_colormap, digitial_butter_highpass_filter
-import utilities_numba as util_nb
+# import utilities_numba as util_nb
+
+def linear_interpolation(x_arr, y_arr, y, rising_edge=True):
+    x_l = x_arr[:-1]; x_h = x_arr[1:]
+    y_l = y_arr[:-1]; y_h = y_arr[1:]
+    if rising_edge:
+        mask= (y_l<=y) & (y<y_h)
+    else:
+        mask= ((y<=y_l) & (y>y_h))
+    if not np.any(mask): return x_arr[0]
+    i = np.where(mask)[0][0]
+    return x_l[i]+(x_h[i]-x_l[i])/(y_h[i]-y_l[i])*(y-y_l[i])
+
+def aft(t, a_int, y):
+    if len(a_int) == 0: return 0
+    if a_int[-1]==a_int[0]:
+        return t[0]
+    else:
+        x_arr = t
+        y_arr = (a_int-a_int[0])/(a_int[-1]-a_int[0])
+        x_l = x_arr[:-1]; x_h = x_arr[1:]
+        y_l = y_arr[:-1]; y_h = y_arr[1:]
+        mask= (y_l<=y) & (y<y_h)
+        if not np.any(mask): return t[0]
+        i = np.where(mask)[0][0]
+        return x_l[i]+(x_h[i]-x_l[i])/(y_h[i]-y_l[i])*(y-y_l[i])
+
+def rise_time(x_arr, y_arr, spe_thresh=0.125):
+    if len(y_arr) == 0: return -1
+    ymax = np.max(y_arr)
+    if ymax<spe_thresh:
+        return -1
+    imax = np.argmax(y_arr)
+    if imax==0:
+        return 0
+    y10 = ymax*0.1
+    y90 = ymax*0.9
+    x_l = x_arr[:-1]; x_h = x_arr[1:]
+    y_l = y_arr[:-1]; y_h = y_arr[1:]
+    msk10 = np.where((y_l<=y10) & (y10<y_h))[0]
+    msk90 = np.where((y_l<=y90) & (y90<y_h))[0]
+    if msk10.size==0 or msk90.size==0:
+        return -2
+    i = msk10[0]; t10 = x_l[i]+(x_h[i]-x_l[i])/(y_h[i]-y_l[i])*(y10-y_l[i])
+    i = msk90[0]; t90 = x_l[i]+(x_h[i]-x_l[i])/(y_h[i]-y_l[i])*(y90-y_l[i])
+    return t90-t10
+
+def fall_time(x_arr, y_arr, spe_thresh=0.125):
+    if len(y_arr) == 0: return -1
+    ymax = np.max(y_arr)
+    if ymax<spe_thresh:
+        return -1
+    imax = np.argmax(y_arr)
+    if imax==0:
+        return 0
+    y90 = ymax*0.9
+    y10 = ymax*0.1
+    x_l = x_arr[:-1]; x_h = x_arr[1:]
+    y_l = y_arr[:-1]; y_h = y_arr[1:]
+    msk90 = np.where((y_l>=y90) & (y90>y_h))[0]
+    msk10 = np.where((y_l>=y10) & (y10>y_h))[0]
+    if msk10.size==0 or msk90.size==0:
+        return -2
+    i = msk90[0]; t90 = x_l[i]+(x_h[i]-x_l[i])/(y_h[i]-y_l[i])*(y90-y_l[i])
+    i = msk10[0]; t10 = x_l[i]+(x_h[i]-x_l[i])/(y_h[i]-y_l[i])*(y10-y_l[i])
+    return t10-t90
 
 class PulseFinder():
     """
@@ -138,7 +203,7 @@ class PulseFinder():
                 continue
             a = self.wfm.amp_pe[ch]
             #print ('ch, val, a ',ch,' ',val,'    value:    ',a)
-            qx = util_nb.quantile_f8(a[0:150], MY_QUANTILES)
+            qx = np.quantile(a[0:150], MY_QUANTILES)
             std = abs(qx[2]-qx[0])
             med = qx[1]
             self.base_med_pe[ch] = med
@@ -219,7 +284,7 @@ class PulseFinder():
             for ch in self.wfm.amp_pe.keys():
                 if 'b5' in ch:
                     area_pe[ch] = a_int[end_b5]-a_int[start_b5]
-                    height_pe[ch] = util_nb.max(a[start_b5:end_b5])
+                    height_pe[ch] = np.max(a[start_b5:end_b5])
                 else:
                     a = self.wfm.amp_pe[ch]
                     #print ('a ', a)
@@ -231,7 +296,7 @@ class PulseFinder():
                     if end == 0:
                         height_pe[ch] = 0.0
                     else:
-                        height_pe[ch] = util_nb.max(a[start:end])
+                        height_pe[ch] = np.max(a[start:end])
             self.height_ch_pe.append(height_pe)
             self.area_ch_pe.append(area_pe)
 
@@ -323,37 +388,37 @@ class PulseFinder():
             self.area_col8_pe.append(a_col8_int[end]-a_col8_int[start])
             
             self.area_user_pe.append(a_user_int[end]-a_user_int[start])
-            self.aft10_sum_ns.append(util_nb.aft(t_ax[start:end], a_sum_int[start:end], 0.1))
-            self.aft10_bot_ns.append(util_nb.aft(t_ax[start:end], a_bot_int[start:end], 0.1))
-            self.aft10_side_ns.append(util_nb.aft(t_ax[start:end], a_side_int[start:end], 0.1))
+            self.aft10_sum_ns.append(aft(t_ax[start:end], a_sum_int[start:end], 0.1))
+            self.aft10_bot_ns.append(aft(t_ax[start:end], a_bot_int[start:end], 0.1))
+            self.aft10_side_ns.append(aft(t_ax[start:end], a_side_int[start:end], 0.1))
             
-            self.aft10_row1_ns.append(util_nb.aft(t_ax[start:end], a_row1_int[start:end], 0.1))
-            self.aft10_row2_ns.append(util_nb.aft(t_ax[start:end], a_row2_int[start:end], 0.1))
-            self.aft10_row3_ns.append(util_nb.aft(t_ax[start:end], a_row3_int[start:end], 0.1))
-            self.aft10_row4_ns.append(util_nb.aft(t_ax[start:end], a_row4_int[start:end], 0.1))
-            self.aft10_row5_ns.append(util_nb.aft(t_ax[start:end], a_row5_int[start:end], 0.1))
-            self.aft10_row6_ns.append(util_nb.aft(t_ax[start:end], a_row6_int[start:end], 0.1))
-            self.aft10_row7_ns.append(util_nb.aft(t_ax[start:end], a_row7_int[start:end], 0.1))
+            self.aft10_row1_ns.append(aft(t_ax[start:end], a_row1_int[start:end], 0.1))
+            self.aft10_row2_ns.append(aft(t_ax[start:end], a_row2_int[start:end], 0.1))
+            self.aft10_row3_ns.append(aft(t_ax[start:end], a_row3_int[start:end], 0.1))
+            self.aft10_row4_ns.append(aft(t_ax[start:end], a_row4_int[start:end], 0.1))
+            self.aft10_row5_ns.append(aft(t_ax[start:end], a_row5_int[start:end], 0.1))
+            self.aft10_row6_ns.append(aft(t_ax[start:end], a_row6_int[start:end], 0.1))
+            self.aft10_row7_ns.append(aft(t_ax[start:end], a_row7_int[start:end], 0.1))
             
-            self.aft90_sum_ns.append(util_nb.aft(t_ax[start:end], a_sum_int[start:end], 0.9))
-            self.aft90_bot_ns.append(util_nb.aft(t_ax[start:end], a_bot_int[start:end], 0.9))
-            self.aft90_side_ns.append(util_nb.aft(t_ax[start:end], a_side_int[start:end], 0.9))
+            self.aft90_sum_ns.append(aft(t_ax[start:end], a_sum_int[start:end], 0.9))
+            self.aft90_bot_ns.append(aft(t_ax[start:end], a_bot_int[start:end], 0.9))
+            self.aft90_side_ns.append(aft(t_ax[start:end], a_side_int[start:end], 0.9))
             
-            self.aft90_row1_ns.append(util_nb.aft(t_ax[start:end], a_row1_int[start:end], 0.9))
-            self.aft90_row2_ns.append(util_nb.aft(t_ax[start:end], a_row2_int[start:end], 0.9))
-            self.aft90_row3_ns.append(util_nb.aft(t_ax[start:end], a_row3_int[start:end], 0.9))
-            self.aft90_row4_ns.append(util_nb.aft(t_ax[start:end], a_row4_int[start:end], 0.9))
-            self.aft90_row5_ns.append(util_nb.aft(t_ax[start:end], a_row5_int[start:end], 0.9))
-            self.aft90_row6_ns.append(util_nb.aft(t_ax[start:end], a_row6_int[start:end], 0.9))
-            self.aft90_row7_ns.append(util_nb.aft(t_ax[start:end], a_row7_int[start:end], 0.9))
+            self.aft90_row1_ns.append(aft(t_ax[start:end], a_row1_int[start:end], 0.9))
+            self.aft90_row2_ns.append(aft(t_ax[start:end], a_row2_int[start:end], 0.9))
+            self.aft90_row3_ns.append(aft(t_ax[start:end], a_row3_int[start:end], 0.9))
+            self.aft90_row4_ns.append(aft(t_ax[start:end], a_row4_int[start:end], 0.9))
+            self.aft90_row5_ns.append(aft(t_ax[start:end], a_row5_int[start:end], 0.9))
+            self.aft90_row6_ns.append(aft(t_ax[start:end], a_row6_int[start:end], 0.9))
+            self.aft90_row7_ns.append(aft(t_ax[start:end], a_row7_int[start:end], 0.9))
             
             # print('debug: ', t_ax[start:end], a_sum[start:end], a_bot[start:end], a_side[start:end])
-            self.rise_sum_ns.append(util_nb.rise_time(t_ax[start:end], a_sum[start:end], spe_thr))
-            self.rise_bot_ns.append(util_nb.rise_time(t_ax[start:end], a_bot[start:end], spe_thr))
-            self.rise_side_ns.append(util_nb.rise_time(t_ax[start:end], a_side[start:end], spe_thr))
-            self.fall_sum_ns.append(util_nb.fall_time(t_ax[start:end], a_sum[start:end], spe_thr))
-            self.fall_bot_ns.append(util_nb.fall_time(t_ax[start:end], a_bot[start:end], spe_thr))
-            self.fall_side_ns.append(util_nb.fall_time(t_ax[start:end], a_side[start:end], spe_thr))
+            self.rise_sum_ns.append(rise_time(t_ax[start:end], a_sum[start:end], spe_thr))
+            self.rise_bot_ns.append(rise_time(t_ax[start:end], a_bot[start:end], spe_thr))
+            self.rise_side_ns.append(rise_time(t_ax[start:end], a_side[start:end], spe_thr))
+            self.fall_sum_ns.append(fall_time(t_ax[start:end], a_sum[start:end], spe_thr))
+            self.fall_bot_ns.append(fall_time(t_ax[start:end], a_bot[start:end], spe_thr))
+            self.fall_side_ns.append(fall_time(t_ax[start:end], a_side[start:end], spe_thr))
             end_fp40 = min(start+20, end);
             end_fp30 = min(start+15, end);
             end_fp20 = min(start+10, end);
@@ -369,9 +434,9 @@ class PulseFinder():
             # self.height_sum_pe.append(np.max(a_sum[start:end]))
             # self.height_bot_pe.append(np.max(a_bot[start:end]))
             # self.height_side_pe.append(np.max(a_side[start:end]))
-            self.height_sum_pe.append(util_nb.max(a_sum[start:end]))
-            self.height_bot_pe.append(util_nb.max(a_bot[start:end]))
-            self.height_side_pe.append(util_nb.max(a_side[start:end]))
+            self.height_sum_pe.append(np.max(a_sum[start:end]))
+            self.height_bot_pe.append(np.max(a_bot[start:end]))
+            self.height_side_pe.append(np.max(a_side[start:end]))
             self.ptime_ns.append( (argmax(a_sum[start:end])+start)*SAMPLE_TO_NS )
             sba = (self.area_side_pe[-1]-self.area_bot_pe[-1])/self.area_sum_pe[-1]
             self.sba.append( sba ) # side-to-bottom asymmetry
