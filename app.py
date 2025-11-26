@@ -210,11 +210,12 @@ def generate_event_grid():
             # Fetch event_id and trigger channels
             branches_to_read = trigger_branch_names + ['event_id']
             
-            for batch in tree.iterate(expressions=branches_to_read, library="np"):
+            # Use default library (awkward) to be compatible with RunDROP
+            for batch in tree.iterate(expressions=branches_to_read):
                 if events_found >= max_events or events_scanned >= max_scan_events:
                     break
                 
-                n_batch_events = len(batch[trigger_branch_names[0]])
+                n_batch_events = len(batch)
                 
                 for i in range(n_batch_events):
                     if events_found >= max_events or events_scanned >= max_scan_events:
@@ -223,7 +224,8 @@ def generate_event_grid():
                     events_scanned += 1
                     is_triggered = False
                     for trigger_ch_name in trigger_branch_names:
-                        trigger_wf = batch[trigger_ch_name][i]
+                        # Convert to numpy for calculation
+                        trigger_wf = batch[trigger_ch_name][i].to_numpy()
                         baseline = get_baseline(trigger_wf)
                         if np.any((-(trigger_wf - baseline) * ADC_TO_MV_B4) > trigger_threshold):
                             is_triggered = True
