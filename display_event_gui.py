@@ -144,7 +144,7 @@ def display_3d_grid(events_data, fig):
         
         # Process charge and time (similar loop to display_charge but simplified for 3D only)
         for j in range(len(chg)):
-             area3.append(abs(chg[j])*30)
+             area3.append(abs(chg[j])*3)
              colo3.append(atime[j])
 
         # Determine vmin/vmax for colorbar consistency within this event
