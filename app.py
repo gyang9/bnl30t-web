@@ -230,11 +230,15 @@ def generate_event_grid():
                     
                     if is_triggered:
                         # Get global event ID
-                        global_evt_id = batch['event_id'][i]
+                        global_evt_id = int(batch['event_id'][i]) # Cast to int for EventDisplay
                         
                         # Now use EventDisplay to get the calibrated data for this event
                         # This ensures we use the same calibration/mapping as the single event display
-                        ed.grab_events(global_evt_id)
+                        n_grabbed = ed.grab_events(global_evt_id)
+                        if n_grabbed != 1:
+                             print(f"Debug: Failed to grab event {global_evt_id}")
+                             continue
+
                         wfm = ed.get_all_waveform(global_evt_id)
                         
                         if wfm and wfm.amp_pe:
@@ -257,11 +261,13 @@ def generate_event_grid():
                                 'atime': atime
                             })
                             events_found += 1
+                        else:
+                            print(f"Debug: WFM empty for event {global_evt_id}")
 
         if not events_data:
              return jsonify({
                  'success': False, 
-                 'error': f'No events found matching trigger. Scanned {events_found} triggered events out of {max_events} requested. (Check trigger channels and threshold)'
+                 'error': f'No events found matching trigger. Scanned {events_found} triggered events out of {max_events} requested. (Check trigger channels and threshold). Debug: Last checked ID {global_evt_id if "global_evt_id" in locals() else "None"}'
              })
 
         # Plotting
