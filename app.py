@@ -204,22 +204,23 @@ def generate_event_grid():
             
             # Iterate to find triggered events
             events_found = 0
-            # We need to know the global event ID. 
-            # The 'event_id' branch usually exists.
+            events_scanned = 0
+            max_scan_events = 10000 # Safety limit to prevent timeout
             
             # Fetch event_id and trigger channels
             branches_to_read = trigger_branch_names + ['event_id']
             
             for batch in tree.iterate(expressions=branches_to_read, library="np"):
-                if events_found >= max_events:
+                if events_found >= max_events or events_scanned >= max_scan_events:
                     break
                 
                 n_batch_events = len(batch[trigger_branch_names[0]])
                 
                 for i in range(n_batch_events):
-                    if events_found >= max_events:
+                    if events_found >= max_events or events_scanned >= max_scan_events:
                         break
-                        
+                    
+                    events_scanned += 1
                     is_triggered = False
                     for trigger_ch_name in trigger_branch_names:
                         trigger_wf = batch[trigger_ch_name][i]
@@ -230,39 +231,48 @@ def generate_event_grid():
                     
                     if is_triggered:
                         # Get global event ID
-                        global_evt_id = int(batch['event_id'][i]) # Cast to int for EventDisplay
+                        global_evt_id = int(batch['event_id'][i])
                         
-                        # Now use EventDisplay to get the calibrated data for this event
-                        # This ensures we use the same calibration/mapping as the single event display
-                        n_grabbed = ed.grab_events(global_evt_id)
-                        if n_grabbed != 1:
-                             print(f"Debug: Failed to grab event {global_evt_id}")
-                             continue
-
-                        wfm = ed.get_all_waveform(global_evt_id)
+                        # OPTIMIZATION: Process the event directly from the current batch
+                        # instead of calling grab_events() which re-reads the file from the start.
                         
-                        if wfm and wfm.amp_pe:
-                            evt_chg = []
-                            atime = []
-                            # Extract data for 3D plot (same logic as single event display)
-                            for ch in ed.run.ch_names:
-                                if 'b4' in ch: continue
-                                charge = 0
-                                peak_time = 0
-                                if ch in wfm.amp_pe:
-                                    charge = np.sum(wfm.amp_pe[ch])
-                                    peak_time = np.argmax(wfm.amp_pe[ch]) * 2
-                                evt_chg.append(charge)
-                                atime.append(peak_time)
+                        # Create a mini-batch with just this event
+                        # We need to slice all arrays in the batch
+                        mini_batch = batch[i:i+1]
+                        
+                        # Use the existing EventDisplay's RunDROP instance to process this mini-batch
+                        ed.run.process_batch(mini_batch, None)
+                        
+                        # The processed waveform is now in ed.run.wfm_list
+                        if ed.run.wfm_list:
+                            wfm = ed.run.wfm_list[0] # There should be only one
                             
-                            events_data.append({
-                                'event_id': int(global_evt_id),
-                                'chg': evt_chg,
-                                'atime': atime
-                            })
-                            events_found += 1
+                            if wfm and wfm.amp_pe:
+                                evt_chg = []
+                                atime = []
+                                # Extract data for 3D plot
+                                for ch in ed.run.ch_names:
+                                    if 'b4' in ch: continue
+                                    charge = 0
+                                    peak_time = 0
+                                    if ch in wfm.amp_pe:
+                                        charge = np.sum(wfm.amp_pe[ch])
+                                        peak_time = np.argmax(wfm.amp_pe[ch]) * 2
+                                    evt_chg.append(charge)
+                                    atime.append(peak_time)
+                                
+                                events_data.append({
+                                    'event_id': global_evt_id,
+                                    'chg': evt_chg,
+                                    'atime': atime
+                                })
+                                events_found += 1
+                            
+                            # Clear the list to free memory/reset for next iteration
+                            ed.run.wfm_list = []
+                            ed.run.pf_list = []
                         else:
-                            print(f"Debug: WFM empty for event {global_evt_id}")
+                            print(f"Debug: Failed to process event {global_evt_id}")
 
         if not events_data:
              return jsonify({
