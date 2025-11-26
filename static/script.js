@@ -165,3 +165,36 @@ async function generateWaveform() {
         container.innerHTML = `Error: ${e.message}`;
     }
 }
+
+async function generatePersistence() {
+    const channels = document.getElementById('hist-channels').value;
+    const trigger = document.getElementById('hist-trigger').value;
+    const plotContainer = document.getElementById('histogram-plot');
+
+    plotContainer.innerHTML = '<p>Generating persistence plot...</p>';
+
+    try {
+        const response = await fetch('/persistence', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                channels: channels,
+                trigger: trigger,
+                title: 'Persistence Plot'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            plotContainer.innerHTML = `<img src="data:image/png;base64,${data.image}" alt="Persistence Plot">`;
+        } else {
+            plotContainer.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+        }
+    } catch (e) {
+        console.error(e);
+        plotContainer.innerHTML = `<p style="color: red;">Error: ${e.message}</p>`;
+    }
+}

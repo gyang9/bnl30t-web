@@ -20,7 +20,7 @@ os.environ['LIB_DIR'] = os.path.join(DROP_DIR, 'lib')
 # Import analysis modules
 # We need to wrap imports in try-except to handle potential missing dependencies during dev
 try:
-    from analysis import process_file, format_channel_name
+    from analysis import process_file, format_channel_name, get_persistence_data
     from tools.event_display import EventDisplay
     from display_event_gui import display_charge
 except ImportError as e:
@@ -151,6 +151,61 @@ def generate_histogram():
             return jsonify({'success': False, 'error': 'Analysis module not loaded'})
 
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/persistence', methods=['POST'])
+def generate_persistence():
+    if not current_state['file_path']:
+        return jsonify({'success': False, 'error': 'No file loaded'})
+
+    data = request.json
+    channel_string = data.get('channels', 'b1ch0')
+    trigger_string = data.get('trigger', 'b4ch9')
+    title = data.get('title', 'Persistence Plot')
+
+    try:
+        signal_channels = parse_channel_string(channel_string)
+        trigger_channels = parse_channel_string(trigger_string)
+
+        if get_persistence_data:
+            t_bins, amp_bins, H = get_persistence_data(
+                current_state['file_path'], 
+                trigger_channels=trigger_channels, 
+                signal_channels=signal_channels
+            )
+            
+            if H is None:
+                 return jsonify({'success': False, 'error': 'No events found matching trigger.'})
+
+            fig, ax = plt.subplots(figsize=(10, 6))
+            # Use pcolormesh for 2D histogram
+            # H needs to be transposed because pcolormesh expects (y, x) for C
+            # But our H is (amp_bins, t_bins) which corresponds to (y, x)
+            
+            # Log scale for color to see low freq features
+            from matplotlib.colors import LogNorm
+            
+            mesh = ax.pcolormesh(t_bins, amp_bins, H, norm=LogNorm(), cmap='jet')
+            fig.colorbar(mesh, ax=ax, label='Counts')
+            
+            ax.set_title(title)
+            ax.set_xlabel("Time (ns)")
+            ax.set_ylabel("Amplitude (mV)")
+            
+            # Save to base64 image
+            img = io.BytesIO()
+            fig.savefig(img, format='png')
+            img.seek(0)
+            plot_url = base64.b64encode(img.getvalue()).decode()
+            plt.close(fig)
+            
+            return jsonify({'success': True, 'image': plot_url})
+        else:
+            return jsonify({'success': False, 'error': 'Analysis module not loaded'})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/event_display', methods=['POST'])
