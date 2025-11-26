@@ -22,7 +22,7 @@ os.environ['LIB_DIR'] = os.path.join(DROP_DIR, 'lib')
 try:
     from analysis import process_file, format_channel_name, get_persistence_data
     from tools.event_display import EventDisplay
-    from display_event_gui import display_charge
+    from display_event_gui import display_charge, display_3d_grid
 except ImportError as e:
     print(f"Warning: Could not import analysis modules: {e}")
     import traceback
@@ -31,6 +31,7 @@ except ImportError as e:
     process_file = None
     EventDisplay = None
     display_charge = None
+    display_3d_grid = None
 else:
     import_error_msg = None
 
@@ -153,46 +154,118 @@ def generate_histogram():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/persistence', methods=['POST'])
-def generate_persistence():
+@app.route('/event_grid', methods=['POST'])
+def generate_event_grid():
     if not current_state['file_path']:
         return jsonify({'success': False, 'error': 'No file loaded'})
 
     data = request.json
-    channel_string = data.get('channels', 'b1ch0')
+    # Channels field is unused for this visualization as we show all PMTs in 3D
     trigger_string = data.get('trigger', 'b4ch9')
-    title = data.get('title', 'Persistence Plot')
+    title = data.get('title', '3D Event Grid')
 
     try:
-        signal_channels = parse_channel_string(channel_string)
         trigger_channels = parse_channel_string(trigger_string)
+        
+        # We need to find triggered events using the EventDisplay class or similar logic
+        # Since EventDisplay is already initialized, let's use it if possible, 
+        # but EventDisplay is designed for single event access.
+        # We can iterate through events using the same logic as process_file but returning event IDs.
+        
+        # Let's use a helper to get triggered event IDs and data
+        # We need to read the file again or use the existing EventDisplay
+        
+        ed = current_state['event_display']
+        if not ed:
+             return jsonify({'success': False, 'error': 'Event Display not initialized'})
 
-        if get_persistence_data:
-            t_bins, amp_bins, H = get_persistence_data(
-                current_state['file_path'], 
-                trigger_channels=trigger_channels, 
-                signal_channels=signal_channels
-            )
+        # Limit to first 9 triggered events for grid (3x3)
+        max_events = 9
+        events_data = []
+        
+        # We need to scan the file for triggers. 
+        # Re-using the logic from analysis.py but inside here for simplicity or we could add a function to analysis.py
+        # Let's add a function to analysis.py to get triggered event IDs? 
+        # Or just iterate using ed.grab_events() which might be slow if we have to check every event.
+        # Faster to use uproot directly like in analysis.py.
+        
+        # Let's use the process_file logic but adapted.
+        # Actually, let's just use uproot here to find IDs, then use ed to get data.
+        
+        import uproot
+        from analysis import format_channel_name, get_baseline
+        
+        ADC_TO_MV_B4 = 2000.0 / 4095.0
+        trigger_threshold = 100.0
+        
+        with uproot.open(current_state['file_path']) as file:
+            tree = file["daq"]
+            trigger_branch_names = ["adc_" + format_channel_name(ch) for ch in trigger_channels]
             
-            if H is None:
-                 return jsonify({'success': False, 'error': 'No events found matching trigger.'})
+            # Iterate to find triggered events
+            events_found = 0
+            # We need to know the global event ID. 
+            # The 'event_id' branch usually exists.
+            
+            # Fetch event_id and trigger channels
+            branches_to_read = trigger_branch_names + ['event_id']
+            
+            for batch in tree.iterate(expressions=branches_to_read, library="np"):
+                if events_found >= max_events:
+                    break
+                
+                n_batch_events = len(batch[trigger_branch_names[0]])
+                
+                for i in range(n_batch_events):
+                    if events_found >= max_events:
+                        break
+                        
+                    is_triggered = False
+                    for trigger_ch_name in trigger_branch_names:
+                        trigger_wf = batch[trigger_ch_name][i]
+                        baseline = get_baseline(trigger_wf)
+                        if np.any((-(trigger_wf - baseline) * ADC_TO_MV_B4) > trigger_threshold):
+                            is_triggered = True
+                            break
+                    
+                    if is_triggered:
+                        # Get global event ID
+                        global_evt_id = batch['event_id'][i]
+                        
+                        # Now use EventDisplay to get the calibrated data for this event
+                        # This ensures we use the same calibration/mapping as the single event display
+                        ed.grab_events(global_evt_id)
+                        wfm = ed.get_all_waveform(global_evt_id)
+                        
+                        if wfm and wfm.amp_pe:
+                            evt_chg = []
+                            atime = []
+                            # Extract data for 3D plot (same logic as single event display)
+                            for ch in ed.run.ch_names:
+                                if 'b4' in ch: continue
+                                charge = 0
+                                peak_time = 0
+                                if ch in wfm.amp_pe:
+                                    charge = np.sum(wfm.amp_pe[ch])
+                                    peak_time = np.argmax(wfm.amp_pe[ch]) * 2
+                                evt_chg.append(charge)
+                                atime.append(peak_time)
+                            
+                            events_data.append({
+                                'event_id': int(global_evt_id),
+                                'chg': evt_chg,
+                                'atime': atime
+                            })
+                            events_found += 1
 
-            fig, ax = plt.subplots(figsize=(10, 6))
-            # Use pcolormesh for 2D histogram
-            # H needs to be transposed because pcolormesh expects (y, x) for C
-            # But our H is (amp_bins, t_bins) which corresponds to (y, x)
+        if not events_data:
+             return jsonify({'success': False, 'error': 'No events found matching trigger.'})
+
+        # Plotting
+        if display_3d_grid:
+            fig = plt.figure(figsize=(12, 12))
+            display_3d_grid(events_data, fig)
             
-            # Log scale for color to see low freq features
-            from matplotlib.colors import LogNorm
-            
-            mesh = ax.pcolormesh(t_bins, amp_bins, H, norm=LogNorm(), cmap='jet')
-            fig.colorbar(mesh, ax=ax, label='Counts')
-            
-            ax.set_title(title)
-            ax.set_xlabel("Time (ns)")
-            ax.set_ylabel("Amplitude (mV)")
-            
-            # Save to base64 image
             img = io.BytesIO()
             fig.savefig(img, format='png')
             img.seek(0)
@@ -201,7 +274,7 @@ def generate_persistence():
             
             return jsonify({'success': True, 'image': plot_url})
         else:
-            return jsonify({'success': False, 'error': 'Analysis module not loaded'})
+            return jsonify({'success': False, 'error': 'Display module not loaded'})
 
     except Exception as e:
         import traceback

@@ -166,30 +166,28 @@ async function generateWaveform() {
     }
 }
 
-async function generatePersistence() {
-    const channels = document.getElementById('hist-channels').value;
-    const trigger = document.getElementById('hist-trigger').value;
-    const plotContainer = document.getElementById('histogram-plot');
+async function generateEventGrid() {
+    const trigger = document.getElementById('grid-trigger').value;
+    const plotContainer = document.getElementById('grid-plot');
 
-    plotContainer.innerHTML = '<p>Generating persistence plot...</p>';
+    plotContainer.innerHTML = '<p>Generating 3D Event Grid...</p>';
 
     try {
-        const response = await fetch('/persistence', {
+        const response = await fetch('/event_grid', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                channels: channels,
                 trigger: trigger,
-                title: 'Persistence Plot'
+                title: '3D Event Grid'
             })
         });
 
         const data = await response.json();
 
         if (data.success) {
-            plotContainer.innerHTML = `<img src="data:image/png;base64,${data.image}" alt="Persistence Plot">`;
+            plotContainer.innerHTML = `<img src="data:image/png;base64,${data.image}" alt="3D Event Grid">`;
         } else {
             plotContainer.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
         }

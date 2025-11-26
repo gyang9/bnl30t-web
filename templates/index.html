@@ -26,7 +26,8 @@
         </section>
 
         <div class="tabs">
-            <button class="tab-btn active" onclick="openTab('histogram')">Histogram</button>
+            <button class="tab-btn" onclick="openTab('histogram')">Histogram</button>
+            <button class="tab-btn" onclick="openTab('triggered-events')">Triggered Events</button>
             <button class="tab-btn" onclick="openTab('event-display')">Event Display</button>
             <button class="tab-btn" onclick="openTab('waveform')">Waveform</button>
         </div>
@@ -36,13 +37,13 @@
                 <div class="input-group">
                     <label for="hist-channels">Channels:</label>
                     <input type="text" id="hist-channels" value="b1ch2" placeholder="e.g. b1ch2, b1ch0-15">
+                    <input type="text" id="hist-channels" value="b1ch2" placeholder="e.g. b1ch0-15">
                 </div>
                 <div class="input-group">
                     <label for="hist-trigger">Trigger:</label>
                     <input type="text" id="hist-trigger" value="b4ch9" placeholder="e.g. b4ch9">
                 </div>
                 <button onclick="generateHistogram()">Generate Histogram</button>
-                <button onclick="generatePersistence()">Generate Persistence Plot</button>
             </div>
 
             <div class="help-text"
@@ -51,19 +52,29 @@
                 <ul>
                     <li><strong>Trigger:</strong> The channel(s) used to decide if an event is kept. An event is saved
                         if the signal in this channel exceeds 100 mV.</li>
-                    <li><strong>Channels:</strong> The channel(s) whose data is plotted.
-                        <ul>
-                            <li>For <em>Histogram</em>: The integrated charge (sum of samples) is plotted.</li>
-                            <li>For <em>Persistence Plot</em>: The waveform shape is overlaid for all triggered events.
-                            </li>
-                        </ul>
-                    </li>
+                    <li><strong>Channels:</strong> The channel(s) whose data is plotted (Integrated Charge).</li>
                 </ul>
             </div>
 
             <div id="histogram-plot" class="plot-container">
                 <!-- Plot will appear here -->
             </div>
+        </div>
+
+        <div id="triggered-events" class="tab-content">
+            <div class="controls">
+                <div class="input-group">
+                    <label for="grid-trigger">Trigger:</label>
+                    <input type="text" id="grid-trigger" value="b4ch9" placeholder="e.g. b4ch9">
+                </div>
+                <button onclick="generateEventGrid()">Generate 3D Event Grid</button>
+            </div>
+            <div class="help-text"
+                style="margin-top: 10px; font-size: 0.9em; color: #555; background: #f9f9f9; padding: 10px; border-radius: 5px;">
+                <p><strong>Explanation:</strong> Displays a 3D view of the first 9 events that pass the trigger
+                    condition.</p>
+            </div>
+            <div id="grid-plot" class="plot-container"></div>
         </div>
 
         <div id="event-display" class="tab-content">
