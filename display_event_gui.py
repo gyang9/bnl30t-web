@@ -106,3 +106,72 @@ def display_charge(chg, hchg, atime, ievt, isavefig, fig, ax1, ax2, ax3d):
     ax3d.axes.set_ylim3d(bottom=-2000, top=2000)
     ax3d.axes.set_zlim3d(bottom=-2000, top=2000)
 
+
+def display_3d_grid(events_data, fig):
+    """
+    Plots a grid of 3D event displays.
+    events_data: list of dictionaries, each containing {'chg': [], 'atime': [], 'event_id': int}
+    fig: matplotlib figure object
+    """
+    n_events = len(events_data)
+    if n_events == 0:
+        return
+
+    # Determine grid size (approx square)
+    n_cols = int(np.ceil(np.sqrt(n_events)))
+    n_rows = int(np.ceil(n_events / n_cols))
+
+    # PMT Locations (copied from display_charge)
+    locx_3d = [ 508.000, 285.800, 769.900, 0.000, -317.500, -879.900, -698.500, -934.900, -381.000, 0.000, 412.800, 1044.900,
+              -1133.5, -1133.5, -1133.5, -1133.5, -566.75, -566.75, -566.75, -566.75, 566.75, 566.75, 566.75, 566.75, 1133.5, 1133.5, 1133.5, 1133.5, 566.75, 566.75, 566.75, 566.75, -566.75, -566.75, -566.75, -566.75]
+    locy_3d = [0.000, 494.900, 444.500, 952.500, 549.900, 508.000, 0.000, -539.800, -659.900, -1143.000, -714.900, -603.300,
+              0.0, 0.0, 0.0, 0.0, -981.64, -981.64, -981.64, -981.64, -981.64, -981.64, -981.64, -981.64, 0.0, 0.0, 0.0, 0.0, 981.64, 981.64, 981.64, 981.64, 981.64, 981.64, 981.64, 981.64]
+    locz_3d = [ -1035.950, -1035.950, -1035.950, -1035.950, -1035.950, -1035.950, -1035.950, -1035.950, -1035.950, -1035.950, -1035.950, -1035.950,
+              1254.35, 644.75, 35.15, -574.45, 1254.35, 644.75, 35.15, -574.45, 1254.35, 644.75, 35.15, -574.45, 1254.35, 644.75, 35.15, -574.45, 1254.35, 644.75, 35.15, -574.45, 1254.35, 644.75, 35.15, -574.45]
+
+    # Cylinder mesh
+    Xc,Yc,Zc = data_for_cylinder_along_z(0,0,1503,1625)
+
+    for i, event in enumerate(events_data):
+        ax = fig.add_subplot(n_rows, n_cols, i + 1, projection='3d')
+        
+        chg = event['chg']
+        atime = event['atime']
+        event_id = event['event_id']
+
+        area3 = []
+        colo3 = []
+        
+        # Process charge and time (similar loop to display_charge but simplified for 3D only)
+        for j in range(len(chg)):
+             area3.append(abs(chg[j])*30)
+             colo3.append(atime[j])
+
+        # Determine vmin/vmax for colorbar consistency within this event
+        if colo3:
+            all_times_np = np.array(colo3)
+            # Filter out very small times (zeros) if any, though atime usually > 0
+            valid_times = all_times_np[all_times_np > 10]
+            if valid_times.size > 0:
+                min_time = np.min(valid_times)
+                max_time = np.max(all_times_np)
+                vmin = min_time - 10
+                vmax = max_time + 10
+            else:
+                vmin, vmax = None, None
+        else:
+            vmin, vmax = None, None
+
+        sc3 = ax.scatter(locx_3d, locy_3d, locz_3d, s=area3, c=colo3, vmin=vmin, vmax=vmax)
+        ax.plot_surface(Xc, Yc, Zc, alpha=0.1) # Lighter alpha for grid view
+        
+        # Simplified axes for small plots
+        ax.set_title(f'Event {event_id}', fontsize='small')
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_zticks([])
+        ax.axes.set_xlim3d(left=-2000, right=2000)
+        ax.axes.set_ylim3d(bottom=-2000, top=2000)
+        ax.axes.set_zlim3d(bottom=-2000, top=2000)
+
+
