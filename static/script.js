@@ -62,6 +62,18 @@ async function uploadFile() {
             body: formData
         });
 
+        if (!response.ok) {
+            let errorMsg = `Server Error: ${response.status} ${response.statusText}`;
+            if (response.status === 413) {
+                errorMsg = "File too large (Limit is 500MB, but Render Free Tier may fail earlier).";
+            } else if (response.status === 504) {
+                errorMsg = "Upload timed out (Render limit is ~100s). Try a smaller file or faster connection.";
+            } else if (response.status === 502) {
+                errorMsg = "Server unavailable (likely out of memory). Try a smaller file.";
+            }
+            throw new Error(errorMsg);
+        }
+
         const data = await response.json();
 
         if (data.success) {
@@ -72,6 +84,7 @@ async function uploadFile() {
             statusSpan.style.color = "#c0392b";
         }
     } catch (e) {
+        console.error(e);
         statusSpan.textContent = `Upload Error: ${e.message}`;
         statusSpan.style.color = "#c0392b";
     }
