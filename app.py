@@ -259,7 +259,10 @@ def generate_event_grid():
                             events_found += 1
 
         if not events_data:
-             return jsonify({'success': False, 'error': 'No events found matching trigger.'})
+             return jsonify({
+                 'success': False, 
+                 'error': f'No events found matching trigger. Scanned {events_found} triggered events out of {max_events} requested. (Check trigger channels and threshold)'
+             })
 
         # Plotting
         if display_3d_grid:

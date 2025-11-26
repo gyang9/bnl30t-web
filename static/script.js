@@ -93,7 +93,7 @@ async function uploadFile() {
 async function generateHistogram(title) {
     const channels = document.getElementById('hist-channels').value;
     const trigger = document.getElementById('hist-trigger').value;
-    const container = document.getElementById('hist-plot');
+    const container = document.getElementById('histogram-plot');
 
     container.innerHTML = "Generating...";
 
