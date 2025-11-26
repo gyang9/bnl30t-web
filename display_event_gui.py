@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import argparse
 import sys
-sys.path.append("/home/guang/work/bnl1t/drop/drop_jan26_24_pull/drop/tools")
-from event_display import EventDisplay
+
 
 def data_for_cylinder_along_z(center_x,center_y,radius,height_z):
     z = np.linspace(-height_z, height_z, 50)
