@@ -25,9 +25,14 @@ try:
     from display_event_gui import display_charge
 except ImportError as e:
     print(f"Warning: Could not import analysis modules: {e}")
+    import traceback
+    traceback.print_exc()
+    import_error_msg = str(e)
     process_file = None
     EventDisplay = None
     display_charge = None
+else:
+    import_error_msg = None
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max upload
@@ -80,7 +85,7 @@ def load_file():
     
     # Check if backend modules are available
     if not EventDisplay:
-        return jsonify({'success': False, 'error': 'Backend analysis modules not available. The drop folder may be missing.'})
+        return jsonify({'success': False, 'error': f'Backend analysis modules not available. Error: {import_error_msg}'})
     
     if not file_path or not os.path.exists(file_path):
         return jsonify({'success': False, 'error': 'File not found'})
