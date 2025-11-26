@@ -208,8 +208,9 @@ def generate_event_grid():
             max_scan_events = 10000 # Safety limit to prevent timeout
             
             # Fetch event_id and trigger channels
-            # RunDROP needs event_ttt_1 and event_sanity as well
-            branches_to_read = trigger_branch_names + ['event_id', 'event_ttt_1', 'event_sanity']
+            # RunDROP needs ALL adc channels plus event info
+            all_branches = tree.keys()
+            branches_to_read = [b for b in all_branches if b.startswith('adc_')] + ['event_id', 'event_ttt_1', 'event_sanity']
             
             # Use default library (awkward) to be compatible with RunDROP
             for batch in tree.iterate(expressions=branches_to_read):
