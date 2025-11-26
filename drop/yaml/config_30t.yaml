@@ -28,7 +28,7 @@ ch_saturated_threshold: 0 # threshold below which a channel is considered satura
 
 # absolute path to the PMT calibration file
 #spe_fit_results_file: '/home/guang/work/bnl1t/drop/drop_jan26_24_pull/drop/yaml/bnl30t_240426T0000_dummy.csv'
-spe_fit_results_file: '/home/guang/work/bnl1t/drop/drop_jan26_24_pull/drop/yaml/bnl30t_spe_fit_results_250609.csv'
+spe_fit_results_file: 'drop/yaml/bnl30t_spe_fit_results_250609.csv'
 
 interpolate_spe: False # bool
 use_hodoscope: False
