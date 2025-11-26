@@ -12,3 +12,4 @@ scipy==1.7.3
 uproot==4.1.9
 
 pandas
+numba

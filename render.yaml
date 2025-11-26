@@ -4,8 +4,8 @@ services:
     env: python
     region: ohio
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && export LIB_DIR=$RENDER_SRC_ROOT/drop/lib && python drop/src/make_numba_lib.py
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.18
+        value: 3.10.12
