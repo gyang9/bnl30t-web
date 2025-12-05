@@ -67,8 +67,10 @@ class Waveform():
             #print ('setting channel ', ch)
             self.raw_data[ch] = val[ch].to_numpy() # numpy is faster
         self.event_id = val.event_id
-        self.event_ttt = val.event_ttt_1
-        self.event_sanity=val.event_sanity
+        try:
+            self.event_ttt = val.event_ttt_1
+        except:
+            self.event_ttt = 0
 
     def find_saturation(self):
         """
