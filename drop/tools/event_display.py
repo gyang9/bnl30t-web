@@ -186,6 +186,8 @@ class EventDisplay():
         import uproot
         import numpy as np
         import sys
+        import gc
+        import resource
         
         print(f"DEBUG: get_all_peak_times started for {self.args.if_path}", file=sys.stderr)
         
@@ -206,16 +208,19 @@ class EventDisplay():
                 if num_events == 0:
                     return peak_times
 
-                # Process in batches to avoid memory issues
-                batch_size = 100
+                # AGGRESSIVE OPTIMIZATION: Small batch size for Render free tier
+                batch_size = 10 
                 
                 # Only read branches we need (the channels)
                 branches_to_read = self.run.ch_names
                 
                 for start_idx in range(0, num_events, batch_size):
                     end_idx = min(start_idx + batch_size, num_events)
-                    if start_idx % 1000 == 0:
-                        print(f"DEBUG: Processing events {start_idx} to {end_idx}", file=sys.stderr)
+                    
+                    # Log memory usage every 10 batches
+                    if start_idx % 100 == 0:
+                        mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+                        print(f"DEBUG: Processing {start_idx}-{end_idx}. Mem: {mem:.2f} MB", file=sys.stderr)
                     
                     # Read batch of events - ONLY necessary branches
                     try:
@@ -243,6 +248,10 @@ class EventDisplay():
                                 # Skip if channel doesn't exist in this event or other error
                                 # print(f"DEBUG: Error processing ch {ch} event {start_idx+event_idx}: {e}", file=sys.stderr)
                                 pass
+                    
+                    # Explicitly delete batch and collect garbage to free memory
+                    del batch
+                    gc.collect() # Optional: might be too slow, but safer for OOM
         except Exception as e:
             print(f"Error in get_all_peak_times: {e}", file=sys.stderr)
             import traceback
