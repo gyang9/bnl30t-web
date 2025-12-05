@@ -216,12 +216,17 @@ async function analyzePeakTimes() {
         });
 
         const text = await response.text();
+
+        if (!response.ok) {
+            throw new Error(`Server Error ${response.status}: ${text.substring(0, 100)}...`);
+        }
+
         let data;
         try {
             data = JSON.parse(text);
         } catch (e) {
             console.error("Failed to parse JSON:", text);
-            throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}...`);
+            throw new Error(`Invalid JSON (Status ${response.status}): ${text.substring(0, 100)}...`);
         }
 
         if (data.success) {

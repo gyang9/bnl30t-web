@@ -410,7 +410,9 @@ def generate_waveform():
 
 @app.route('/analyze_peak_times', methods=['POST'])
 def analyze_peak_times():
-    print("DEBUG: analyze_peak_times called", file=sys.stderr)
+    import resource
+    mem_usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+    print(f"DEBUG: analyze_peak_times called. Memory: {mem_usage:.2f} MB", file=sys.stderr)
     if not current_state['event_display']:
         print("DEBUG: Event Display not initialized", file=sys.stderr)
         return jsonify({'success': False, 'error': 'Event Display not initialized'})
