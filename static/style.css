@@ -116,3 +116,21 @@ button:hover {
     font-weight: bold;
     color: #27ae60;
 }
+
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.grid-item {
+    border: 1px solid #ddd;
+    padding: 5px;
+    text-align: center;
+}
+
+.grid-item img {
+    max-width: 100%;
+    height: auto;
+}

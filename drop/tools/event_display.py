@@ -176,6 +176,36 @@ class EventDisplay():
             print('Hint: event_id is in this range [%d, %d]' % (self.min_event_id, self.max_event_id))
         return len(self.grabbed_event_id)
 
+    def get_all_peak_times(self):
+        """
+        Iterate over all events and extract peak times for each channel.
+        Returns:
+            dict: {ch_name: [peak_time_1, peak_time_2, ...]}
+        """
+        peak_times = {}
+        # Initialize lists for all channels
+        for ch in self.run.ch_names:
+            peak_times[ch] = []
+
+        # Iterate over the file in batches
+        batch_list = uproot.iterate('%s:daq' % self.args.if_path, step_size=100)
+        
+        for batch in batch_list:
+            run = self.run
+            # Process all events in batch
+            run.process_batch(batch, None)
+            
+            # Iterate over processed waveforms in this batch
+            for wfm in run.wfm_list:
+                for ch in self.run.ch_names:
+                    if ch in wfm.amp_pe:
+                        # Find peak time (index of max value) * SAMPLE_TO_NS
+                        peak_idx = np.argmax(wfm.amp_pe[ch])
+                        peak_time_ns = peak_idx * SAMPLE_TO_NS
+                        peak_times[ch].append(int(peak_time_ns))
+        
+        return peak_times
+
     def display_waveform(self, event_id, ch, baseline_subtracted=True, no_show=False):
         """
         Plot waveform, for individual channel, all channels, summed channel,

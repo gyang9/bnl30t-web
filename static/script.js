@@ -196,3 +196,81 @@ async function generateEventGrid() {
         plotContainer.innerHTML = `<p style="color: red;">Error: ${e.message}</p>`;
     }
 }
+
+let currentPeakPage = 1;
+
+async function analyzePeakTimes() {
+    const statusSpan = document.getElementById('peak-analysis-status');
+    const container = document.getElementById('peak-plots');
+    const pagination = document.getElementById('peak-pagination');
+
+    statusSpan.textContent = "Analyzing all events... This may take a while.";
+    statusSpan.style.color = "orange";
+    container.innerHTML = "";
+    pagination.style.display = "none";
+
+    try {
+        const response = await fetch('/analyze_peak_times', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            statusSpan.textContent = `Analysis complete. Total channels: ${data.total_channels}`;
+            statusSpan.style.color = "#27ae60";
+            currentPeakPage = 1;
+            loadPeakTimePlots(1);
+        } else {
+            statusSpan.textContent = `Error: ${data.error}`;
+            statusSpan.style.color = "#c0392b";
+        }
+    } catch (e) {
+        statusSpan.textContent = `Error: ${e.message}`;
+        statusSpan.style.color = "#c0392b";
+    }
+}
+
+async function loadPeakTimePlots(page) {
+    const container = document.getElementById('peak-plots');
+    const pagination = document.getElementById('peak-pagination');
+    const pageInfo = document.getElementById('peak-page-info');
+
+    container.innerHTML = "Loading plots...";
+
+    try {
+        const response = await fetch('/get_peak_time_plots', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ page: page, per_page: 9 })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            container.innerHTML = "";
+            data.plots.forEach(plot => {
+                const div = document.createElement('div');
+                div.className = 'grid-item';
+                div.innerHTML = `<img src="data:image/png;base64,${plot.image}" alt="${plot.channel}">`;
+                container.appendChild(div);
+            });
+
+            currentPeakPage = data.page;
+            pageInfo.textContent = `Page ${data.page} of ${data.total_pages}`;
+            pagination.style.display = "block";
+        } else {
+            container.innerHTML = `Error: ${data.error}`;
+        }
+    } catch (e) {
+        container.innerHTML = `Error: ${e.message}`;
+    }
+}
+
+function changePeakTimePage(delta) {
+    const newPage = currentPeakPage + delta;
+    if (newPage > 0) {
+        loadPeakTimePlots(newPage);
+    }
+}

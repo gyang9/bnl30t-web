@@ -30,6 +30,7 @@
             <button class="tab-btn" onclick="openTab('triggered-events')">Triggered Events</button>
             <button class="tab-btn" onclick="openTab('event-display')">Event Display</button>
             <button class="tab-btn" onclick="openTab('waveform')">Waveform</button>
+            <button class="tab-btn" onclick="openTab('peak-time')">Peak Time Dist</button>
         </div>
 
         <div id="histogram" class="tab-content active">
@@ -93,6 +94,21 @@
                 <button onclick="generateWaveform()">Show Waveforms</button>
             </div>
             <div id="wf-plot" class="plot-container"></div>
+        </div>
+
+        <div id="peak-time" class="tab-content">
+            <h2>Peak Time Distribution</h2>
+            <p>Analyze peak time distribution for all channels across all events.</p>
+            <button onclick="analyzePeakTimes()">Analyze All Events</button>
+            <span id="peak-analysis-status"></span>
+
+            <div id="peak-pagination" style="display:none; margin-top: 10px;">
+                <button onclick="changePeakTimePage(-1)">Prev</button>
+                <span id="peak-page-info">Page 1</span>
+                <button onclick="changePeakTimePage(1)">Next</button>
+            </div>
+
+            <div id="peak-plots" class="grid-container"></div>
         </div>
     </div>
 

@@ -48,7 +48,8 @@ current_state = {
     'file_path': None,
     'event_display': None,
     'min_id': 0,
-    'max_id': 0
+    'max_id': 0,
+    'peak_times_data': None # Store peak times analysis results
 }
 
 @app.route('/')
@@ -405,6 +406,85 @@ def generate_waveform():
             return jsonify({'success': False, 'error': 'Waveforms not found'})
 
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/analyze_peak_times', methods=['POST'])
+def analyze_peak_times():
+    if not current_state['event_display']:
+        return jsonify({'success': False, 'error': 'Event Display not initialized'})
+
+    try:
+        ed = current_state['event_display']
+        # This might take a while for large files
+        peak_times = ed.get_all_peak_times()
+        current_state['peak_times_data'] = peak_times
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Analysis complete',
+            'total_channels': len(peak_times)
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/get_peak_time_plots', methods=['POST'])
+def get_peak_time_plots():
+    if not current_state['peak_times_data']:
+        return jsonify({'success': False, 'error': 'Analysis not performed yet'})
+
+    data = request.json
+    page = int(data.get('page', 1))
+    per_page = int(data.get('per_page', 9))
+    
+    peak_times = current_state['peak_times_data']
+    all_channels = sorted(list(peak_times.keys()))
+    
+    total_channels = len(all_channels)
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    
+    current_channels = all_channels[start_idx:end_idx]
+    
+    plots = []
+    
+    try:
+        for ch in current_channels:
+            times = peak_times[ch]
+            if not times:
+                continue
+                
+            fig, ax = plt.subplots(figsize=(4, 3))
+            ax.hist(times, bins=50, range=(0, 2000)) # Adjust range as needed
+            ax.set_title(ch, fontsize='small')
+            ax.set_xlabel("Peak Time [ns]", fontsize='x-small')
+            ax.set_ylabel("Counts", fontsize='x-small')
+            ax.tick_params(axis='both', which='major', labelsize='x-small')
+            plt.tight_layout()
+            
+            img = io.BytesIO()
+            fig.savefig(img, format='png')
+            img.seek(0)
+            plot_url = base64.b64encode(img.getvalue()).decode()
+            plt.close(fig)
+            
+            plots.append({
+                'channel': ch,
+                'image': plot_url
+            })
+            
+        return jsonify({
+            'success': True,
+            'plots': plots,
+            'page': page,
+            'total_pages': int(np.ceil(total_channels / per_page)),
+            'total_channels': total_channels
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
 
 def parse_channel_string(channel_string):
