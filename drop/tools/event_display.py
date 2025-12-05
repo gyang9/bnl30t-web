@@ -208,8 +208,8 @@ class EventDisplay():
                 if num_events == 0:
                     return peak_times
 
-                # AGGRESSIVE OPTIMIZATION: Small batch size for Render free tier
-                batch_size = 10 
+                # VECTORIZED OPTIMIZATION: Use numpy for speed and lower memory
+                batch_size = 100
                 
                 # Only read branches we need (the channels)
                 branches_to_read = self.run.ch_names
@@ -218,40 +218,41 @@ class EventDisplay():
                     end_idx = min(start_idx + batch_size, num_events)
                     
                     # Log memory usage every 10 batches
-                    if start_idx % 100 == 0:
+                    if start_idx % 500 == 0:
                         mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
                         print(f"DEBUG: Processing {start_idx}-{end_idx}. Mem: {mem:.2f} MB", file=sys.stderr)
                     
-                    # Read batch of events - ONLY necessary branches
+                    # Read batch of events as NUMPY arrays directly
                     try:
-                        batch = tree.arrays(branches_to_read, library='ak', entry_start=start_idx, entry_stop=end_idx)
+                        batch = tree.arrays(branches_to_read, library='np', entry_start=start_idx, entry_stop=end_idx)
                     except Exception as e:
                         print(f"DEBUG: Error reading batch {start_idx}-{end_idx}: {e}", file=sys.stderr)
                         continue
                     
-                    # Process each event in the batch
-                    for event_idx in range(len(batch)):
-                        # For each channel, find the peak (max value) index
-                        for ch in self.run.ch_names:
+                    # Process each channel VECTORIZED
+                    for ch in self.run.ch_names:
+                        if ch in batch:
                             try:
-                                # Get raw waveform for this channel
-                                # Accessing by field name in awkward array
-                                waveform = batch[ch][event_idx].to_numpy()
-                                
-                                # Find peak index (minimum value for negative pulses)
-                                peak_idx = np.argmin(waveform)
-                                
-                                # Convert to nanoseconds
-                                peak_time_ns = peak_idx * SAMPLE_TO_NS
-                                peak_times[ch].append(int(peak_time_ns))
+                                waveform_batch = batch[ch]
+                                # Check if it's a standard numpy array (fixed length waveforms)
+                                if isinstance(waveform_batch, np.ndarray) and waveform_batch.ndim == 2:
+                                    # Vectorized peak finding (argmin across time axis)
+                                    peak_indices = np.argmin(waveform_batch, axis=1)
+                                    peak_times_ns = peak_indices * SAMPLE_TO_NS
+                                    peak_times[ch].extend(peak_times_ns.tolist())
+                                else:
+                                    # Fallback for jagged arrays (object type)
+                                    for i in range(len(waveform_batch)):
+                                        wfm = waveform_batch[i]
+                                        peak_idx = np.argmin(wfm)
+                                        peak_times[ch].append(int(peak_idx * SAMPLE_TO_NS))
                             except Exception as e:
-                                # Skip if channel doesn't exist in this event or other error
-                                # print(f"DEBUG: Error processing ch {ch} event {start_idx+event_idx}: {e}", file=sys.stderr)
+                                # print(f"DEBUG: Error processing ch {ch}: {e}", file=sys.stderr)
                                 pass
                     
-                    # Explicitly delete batch and collect garbage to free memory
+                    # Explicitly delete batch to free memory
                     del batch
-                    gc.collect() # Optional: might be too slow, but safer for OOM
+                    gc.collect() # Vectorized approach creates fewer objects, GC might not be needed per batch
         except Exception as e:
             print(f"Error in get_all_peak_times: {e}", file=sys.stderr)
             import traceback
