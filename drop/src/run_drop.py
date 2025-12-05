@@ -184,26 +184,22 @@ class RunDROP():
             self.pf_list = []
         else:
             writer.reset()
+        # create waveform, PulseFinder,
+        wfm = Waveform(self.cfg)
+        wfm.ch_names = self.ch_names
+        wfm.ch_id = self.ch_id
+        wfm.ch_name_to_id_dict=self.ch_name_to_id_dict
+        wfm.n_boards = self.n_boards
+        wfm.spe_mean = self.spe_mean
+        # create PulseFinder
+        pf = PulseFinder(self.cfg, wfm)
+
         #print ('batch ', batch,' length ',len(batch))
         # loop over events in this batch
         for i in range(len(batch)):
-            # create waveform, PulseFinder,
-            wfm = Waveform(self.cfg)
-            wfm.ch_names = self.ch_names
-            wfm.ch_id = self.ch_id
-            wfm.ch_name_to_id_dict=self.ch_name_to_id_dict
-            wfm.n_boards = self.n_boards
-            wfm.spe_mean = self.spe_mean
-            # create PulseFinder
-            pf = PulseFinder(self.cfg, wfm)
-
             event_id = batch[i].event_id
             #print ('event_id ',event_id,' start_id ',self.start_id)
-            try:
-                event_ttt = batch[i].event_ttt_1
-            except:
-                event_ttt = 0
-                
+            event_ttt = batch[i].event_ttt_1
             if event_id<self.start_id or event_id>=self.end_id:
                 continue
             # waveform

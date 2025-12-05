@@ -179,30 +179,55 @@ class EventDisplay():
     def get_all_peak_times(self):
         """
         Iterate over all events and extract peak times for each channel.
+        This is a standalone implementation that doesn't rely on process_batch.
         Returns:
             dict: {ch_name: [peak_time_1, peak_time_2, ...]}
         """
+        import uproot
+        import numpy as np
+        
         peak_times = {}
         # Initialize lists for all channels
         for ch in self.run.ch_names:
             peak_times[ch] = []
 
-        # Iterate over the file in batches
-        batch_list = uproot.iterate('%s:daq' % self.args.if_path, step_size=100)
-        
-        for batch in batch_list:
-            run = self.run
-            # Process all events in batch
-            run.process_batch(batch, None)
-            
-            # Iterate over processed waveforms in this batch
-            for wfm in run.wfm_list:
-                for ch in self.run.ch_names:
-                    if ch in wfm.amp_pe:
-                        # Find peak time (index of max value) * SAMPLE_TO_NS
-                        peak_idx = np.argmax(wfm.amp_pe[ch])
-                        peak_time_ns = peak_idx * SAMPLE_TO_NS
-                        peak_times[ch].append(int(peak_time_ns))
+        # Open the ROOT file and iterate
+        try:
+            with uproot.open(self.args.if_path) as file:
+                tree = file['daq']
+                
+                # Get total number of events
+                num_events = tree.num_entries
+                
+                # Process in batches to avoid memory issues
+                batch_size = 100
+                for start_idx in range(0, num_events, batch_size):
+                    end_idx = min(start_idx + batch_size, num_events)
+                    
+                    # Read batch of events
+                    batch = tree.arrays(library='ak', entry_start=start_idx, entry_stop=end_idx)
+                    
+                    # Process each event in the batch
+                    for event_idx in range(len(batch)):
+                        # For each channel, find the peak (max value) index
+                        for ch in self.run.ch_names:
+                            try:
+                                # Get raw waveform for this channel
+                                waveform = batch[event_idx][ch].to_numpy()
+                                
+                                # Find peak index (minimum value for negative pulses)
+                                peak_idx = np.argmin(waveform)
+                                
+                                # Convert to nanoseconds
+                                peak_time_ns = peak_idx * SAMPLE_TO_NS
+                                peak_times[ch].append(int(peak_time_ns))
+                            except:
+                                # Skip if channel doesn't exist in this event
+                                pass
+        except Exception as e:
+            print(f"Error in get_all_peak_times: {e}")
+            import traceback
+            traceback.print_exc()
         
         return peak_times
 

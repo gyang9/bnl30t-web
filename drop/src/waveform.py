@@ -67,10 +67,8 @@ class Waveform():
             #print ('setting channel ', ch)
             self.raw_data[ch] = val[ch].to_numpy() # numpy is faster
         self.event_id = val.event_id
-        try:
-            self.event_ttt = val.event_ttt_1
-        except:
-            self.event_ttt = 0
+        self.event_ttt = val.event_ttt_1
+        self.event_sanity=val.event_sanity
 
     def find_saturation(self):
         """
@@ -529,21 +527,6 @@ class Waveform():
         user_pe = 0
         #print ("hodoscope channels: ", self.cfg.hodoscope_pmt_channels)
         #print ("skipping channels : ", self.cfg.skip_pmt_channels)
-        
-        # Find minimum length to ensure broadcasting works
-        min_len = 999999
-        for ch, val in self.amp_pe.items():
-            if 'adc_' in ch:
-                if ch in self.cfg.skip_pmt_channels:
-                    continue
-                if 'b4' in ch:
-                    continue
-                if len(val) < min_len:
-                    min_len = len(val)
-        
-        if min_len == 999999:
-            min_len = 0
-
         for ch, val in self.amp_pe.items():
             if 'adc_' in ch:
                 if ch in self.cfg.skip_pmt_channels:
@@ -552,46 +535,43 @@ class Waveform():
                     continue
     
                 #print (ch)
-                # Slice to min_len
-                v = val[:min_len]
-                
-                tot_pe += v
+                tot_pe += val
                 if ch in self.cfg.bottom_pmt_channels:
-                    bt_pe += v
+                    bt_pe += val
                 if ch in self.cfg.side_pmt_channels:
-                    side_pe += v
+                    side_pe += val
                 if ch in self.cfg.row1_pmt_channels:
-                    r1_pe += v
+                    r1_pe += val
                 if ch in self.cfg.row2_pmt_channels:
-                    r2_pe += v
+                    r2_pe += val
                 if ch in self.cfg.row3_pmt_channels:
-                    r3_pe += v
+                    r3_pe += val
                 if ch in self.cfg.row4_pmt_channels:
-                    r4_pe += v
+                    r4_pe += val
                 if ch in self.cfg.row5_pmt_channels:
-                    r5_pe += v
+                    r5_pe += val
                 if ch in self.cfg.row6_pmt_channels:
-                    r6_pe += v
+                    r6_pe += val
                 if ch in self.cfg.row7_pmt_channels:
-                    r7_pe += v
+                    r7_pe += val
                 if ch in self.cfg.col1_pmt_channels:
-                    c1_pe += v
+                    c1_pe += val
                 if ch in self.cfg.col2_pmt_channels:
-                    c2_pe += v
+                    c2_pe += val
                 if ch in self.cfg.col3_pmt_channels:
-                    c3_pe += v
+                    c3_pe += val
                 if ch in self.cfg.col4_pmt_channels:
-                    c4_pe += v
+                    c4_pe += val
                 if ch in self.cfg.col5_pmt_channels:
-                    c5_pe += v
+                    c5_pe += val
                 if ch in self.cfg.col6_pmt_channels:
-                    c6_pe += v
+                    c6_pe += val
                 if ch in self.cfg.col7_pmt_channels:
-                    c7_pe += v
+                    c7_pe += val
                 if ch in self.cfg.col8_pmt_channels:
-                    c8_pe += v
+                    c8_pe += val
                 if ch in self.cfg.user_pmt_channels:
-                    user_pe += v
+                    user_pe += val
         self.amp_pe['sum'] = tot_pe
         med, std = self.get_flat_baseline(tot_pe, summed_channel=True)
         self.flat_base_pe['sum'] = med
@@ -628,21 +608,9 @@ class Waveform():
         self.time_axis_ns = t
         self.n_samp = n_samp
 
-        if 'adc_b4_ch0' in self.amp_mV:
-            n_samp_b4 = len(self.amp_mV['adc_b4_ch0'])
-        else:
-            # Try to find any b4 channel
-            b4_chs = [ch for ch in self.amp_mV.keys() if 'b4' in ch]
-            if b4_chs:
-                n_samp_b4 = len(self.amp_mV[b4_chs[0]])
-            else:
-                n_samp_b4 = 0
-        
+        n_samp_b4 = len(self.amp_mV['adc_b4_ch0'])
         #n_samp_b4 = 1
-        if n_samp_b4 > 0:
-            t4=np.linspace(0, (n_samp_b4-1)*SAMPLE_TO_NS, n_samp_b4)
-        else:
-            t4 = np.array([])
+        t4=np.linspace(0, (n_samp_b4-1)*SAMPLE_TO_NS, n_samp_b4)
         self.time_axis_ns_b4 = t4
         self.n_samp_b4 = n_samp_b4
 
@@ -737,8 +705,6 @@ class Waveform():
             print('calc_aux_ch_info')
         self.aux_ch_area_mV={}
         for ch in self.cfg.non_signal_channels:
-            if ch not in self.amp_mV:
-                continue
             a=self.amp_mV[ch]
             pp = argmax(a) # peak position
             start=np.max([pp-50, 0])

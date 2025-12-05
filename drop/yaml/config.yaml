@@ -26,10 +26,9 @@ skip_pmt_channels: []
 ch_saturated_threshold: 0 # threshold below which a channel is considered saturated. Unit: adc
 
 # absolute path to the PMT calibration file
-# absolute path to the PMT calibration file
-spe_fit_results_file: '/home/guang/.gemini/antigravity/scratch/bnl1t_web/drop/data/spe_dummy.csv'
+spe_fit_results_file: '/media/disk_a/CERNBOX/WbLS-DATA/db/spe/b/bnl1t_spe_fit_results_220819T1401.csv'
 
-interpolate_spe: False # bool
+interpolate_spe: True # bool
 
 # Noise filter
 apply_high_pass_filter: False
@@ -52,7 +51,3 @@ scipy_peak_finder_parameters:
   height: 0.3 # None
   prominence: 1.0 #
 spe_height_threshold: 0.125 # if a pulse-channel height is above this threshold, it's counted toward coincidence
-
-hodoscope_pmt_channels: []
-use_hodoscope: False
-debug: False
