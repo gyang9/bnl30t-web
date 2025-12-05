@@ -40,8 +40,8 @@ def display_charge(chg, hchg, atime, ievt, isavefig, fig, ax1, ax2, ax3d):
 
     for i in range(len(chg)):
         if i < 12:
-            area.append(abs(chg[i])*30)
-            area3.append(abs(chg[i])*30)
+            area.append(abs(chg[i])*150)
+            area3.append(abs(chg[i])*150)
             colo.append(atime[i])
             colo3.append(atime[i])
         elif i < 36:
@@ -58,8 +58,8 @@ def display_charge(chg, hchg, atime, ievt, isavefig, fig, ax1, ax2, ax3d):
             if i>31 and i< 36:
                 dis_x.append(300)
             dis_y.append(locz_side[i-12])
-            area2.append(abs(chg[i])*30)
-            area3.append(abs(chg[i])*30)
+            area2.append(abs(chg[i])*150)
+            area3.append(abs(chg[i])*150)
             colo2.append(atime[i])
             colo3.append(atime[i])
 
@@ -144,7 +144,7 @@ def display_3d_grid(events_data, fig):
         
         # Process charge and time (similar loop to display_charge but simplified for 3D only)
         for j in range(len(chg)):
-             area3.append(abs(chg[j])*3)
+             area3.append(abs(chg[j])*15)
              colo3.append(atime[j])
 
         # Determine vmin/vmax for colorbar consistency within this event
