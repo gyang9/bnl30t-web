@@ -410,13 +410,19 @@ def generate_waveform():
 
 @app.route('/analyze_peak_times', methods=['POST'])
 def analyze_peak_times():
+    print("DEBUG: analyze_peak_times called", file=sys.stderr)
     if not current_state['event_display']:
+        print("DEBUG: Event Display not initialized", file=sys.stderr)
         return jsonify({'success': False, 'error': 'Event Display not initialized'})
 
     try:
         ed = current_state['event_display']
+        print(f"DEBUG: Starting peak time analysis for {ed.args.if_path}", file=sys.stderr)
+        
         # This might take a while for large files
         peak_times = ed.get_all_peak_times()
+        print(f"DEBUG: Analysis complete, found {len(peak_times)} channels", file=sys.stderr)
+        
         current_state['peak_times_data'] = peak_times
         
         return jsonify({
@@ -425,8 +431,9 @@ def analyze_peak_times():
             'total_channels': len(peak_times)
         })
     except Exception as e:
+        print(f"DEBUG: Exception in analyze_peak_times: {e}", file=sys.stderr)
         import traceback
-        traceback.print_exc()
+        traceback.print_exc(file=sys.stderr)
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/get_peak_time_plots', methods=['POST'])

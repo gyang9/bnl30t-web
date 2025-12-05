@@ -185,6 +185,9 @@ class EventDisplay():
         """
         import uproot
         import numpy as np
+        import sys
+        
+        print(f"DEBUG: get_all_peak_times started for {self.args.if_path}", file=sys.stderr)
         
         peak_times = {}
         # Initialize lists for all channels
@@ -198,14 +201,28 @@ class EventDisplay():
                 
                 # Get total number of events
                 num_events = tree.num_entries
+                print(f"DEBUG: Found {num_events} events", file=sys.stderr)
                 
+                if num_events == 0:
+                    return peak_times
+
                 # Process in batches to avoid memory issues
                 batch_size = 100
+                
+                # Only read branches we need (the channels)
+                branches_to_read = self.run.ch_names
+                
                 for start_idx in range(0, num_events, batch_size):
                     end_idx = min(start_idx + batch_size, num_events)
+                    if start_idx % 1000 == 0:
+                        print(f"DEBUG: Processing events {start_idx} to {end_idx}", file=sys.stderr)
                     
-                    # Read batch of events
-                    batch = tree.arrays(library='ak', entry_start=start_idx, entry_stop=end_idx)
+                    # Read batch of events - ONLY necessary branches
+                    try:
+                        batch = tree.arrays(branches_to_read, library='ak', entry_start=start_idx, entry_stop=end_idx)
+                    except Exception as e:
+                        print(f"DEBUG: Error reading batch {start_idx}-{end_idx}: {e}", file=sys.stderr)
+                        continue
                     
                     # Process each event in the batch
                     for event_idx in range(len(batch)):
@@ -213,7 +230,8 @@ class EventDisplay():
                         for ch in self.run.ch_names:
                             try:
                                 # Get raw waveform for this channel
-                                waveform = batch[event_idx][ch].to_numpy()
+                                # Accessing by field name in awkward array
+                                waveform = batch[ch][event_idx].to_numpy()
                                 
                                 # Find peak index (minimum value for negative pulses)
                                 peak_idx = np.argmin(waveform)
@@ -221,14 +239,17 @@ class EventDisplay():
                                 # Convert to nanoseconds
                                 peak_time_ns = peak_idx * SAMPLE_TO_NS
                                 peak_times[ch].append(int(peak_time_ns))
-                            except:
-                                # Skip if channel doesn't exist in this event
+                            except Exception as e:
+                                # Skip if channel doesn't exist in this event or other error
+                                # print(f"DEBUG: Error processing ch {ch} event {start_idx+event_idx}: {e}", file=sys.stderr)
                                 pass
         except Exception as e:
-            print(f"Error in get_all_peak_times: {e}")
+            print(f"Error in get_all_peak_times: {e}", file=sys.stderr)
             import traceback
-            traceback.print_exc()
+            traceback.print_exc(file=sys.stderr)
+            raise e # Re-raise to be caught by app.py
         
+        print("DEBUG: get_all_peak_times finished", file=sys.stderr)
         return peak_times
 
     def display_waveform(self, event_id, ch, baseline_subtracted=True, no_show=False):

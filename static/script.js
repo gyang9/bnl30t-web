@@ -215,7 +215,14 @@ async function analyzePeakTimes() {
             headers: { 'Content-Type': 'application/json' }
         });
 
-        const data = await response.json();
+        const text = await response.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error("Failed to parse JSON:", text);
+            throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}...`);
+        }
 
         if (data.success) {
             statusSpan.textContent = `Analysis complete. Total channels: ${data.total_channels}`;
